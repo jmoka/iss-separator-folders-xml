@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProcessedFile } from '@/pages/Index';
+import JSZip from 'jszip';
 
 interface FileCategoriesProps {
   title: string;
@@ -27,22 +28,31 @@ const FileCategories = ({ title, description, files, color, icon }: FileCategori
     gray: 'bg-gray-100 text-gray-800'
   };
 
-  const downloadAll = () => {
+  const downloadAll = async () => {
     if (files.length === 0) return;
 
-    files.forEach((file, index) => {
-      setTimeout(() => {
-        const blob = new Blob([file.content], { type: 'application/xml' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = file.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, index * 100); // Pequeno delay entre downloads
+    const zip = new JSZip();
+    
+    // Adiciona cada arquivo ao ZIP
+    files.forEach((file) => {
+      zip.file(file.name, file.content);
     });
+
+    // Gera o arquivo ZIP
+    const content = await zip.generateAsync({ type: 'blob' });
+    
+    // Cria o nome do arquivo ZIP baseado no título da categoria
+    const zipFileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}.zip`;
+    
+    // Faz o download do ZIP
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = zipFileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const downloadSingle = (file: ProcessedFile) => {
@@ -81,7 +91,7 @@ const FileCategories = ({ title, description, files, color, icon }: FileCategori
               variant="outline"
             >
               <Package className="mr-2 h-4 w-4" />
-              Baixar Todos ({files.length} arquivos)
+              Baixar ZIP ({files.length} arquivos)
             </Button>
             
             <div className="space-y-2 max-h-40 overflow-y-auto">

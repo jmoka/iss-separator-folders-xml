@@ -28,7 +28,7 @@ const FileCategories = ({ title, description, files, color, icon }: FileCategori
     gray: 'bg-gray-100 text-gray-800'
   };
 
-  const downloadAll = async () => {
+  const downloadAllAsZip = async () => {
     if (files.length === 0) return;
 
     const zip = new JSZip();
@@ -55,7 +55,7 @@ const FileCategories = ({ title, description, files, color, icon }: FileCategori
     URL.revokeObjectURL(url);
   };
 
-  const downloadSingle = (file: ProcessedFile) => {
+  const downloadSingleXml = (file: ProcessedFile) => {
     const blob = new Blob([file.content], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -86,7 +86,7 @@ const FileCategories = ({ title, description, files, color, icon }: FileCategori
         {files.length > 0 ? (
           <>
             <Button 
-              onClick={downloadAll} 
+              onClick={downloadAllAsZip} 
               className="w-full"
               variant="outline"
             >
@@ -106,7 +106,8 @@ const FileCategories = ({ title, description, files, color, icon }: FileCategori
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => downloadSingle(file)}
+                    onClick={() => downloadSingleXml(file)}
+                    title="Baixar XML individual"
                   >
                     <Download className="h-4 w-4" />
                   </Button>

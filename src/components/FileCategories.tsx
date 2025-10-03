@@ -55,6 +55,29 @@ const FileCategories = ({ title, description, files, color, icon }: FileCategori
     URL.revokeObjectURL(url);
   };
 
+  const downloadAllAsXml = () => {
+    if (files.length === 0) return;
+    
+    // Criar um XML único com todas as notas
+    const xmlHeader = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    const xmlNamespace = '<ListaNotaFiscal xmlns="http:/www.abrasf.org.br/nfse.xsd" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#">';
+    const notasContent = files.map(file => file.content).join('');
+    const xmlFooter = '</ListaNotaFiscal>';
+    
+    const fullXml = `${xmlHeader}${xmlNamespace}${notasContent}${xmlFooter}`;
+    
+    const blob = new Blob([fullXml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const xmlFileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}.xml`;
+    a.href = url;
+    a.download = xmlFileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const downloadSingleXml = (file: ProcessedFile) => {
     const blob = new Blob([file.content], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
@@ -85,14 +108,24 @@ const FileCategories = ({ title, description, files, color, icon }: FileCategori
       <CardContent className="space-y-4">
         {files.length > 0 ? (
           <>
-            <Button 
-              onClick={downloadAllAsZip} 
-              className="w-full"
-              variant="outline"
-            >
-              <Package className="mr-2 h-4 w-4" />
-              Baixar ZIP ({files.length} arquivos)
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={downloadAllAsXml}
+                className="flex-1"
+                variant="default"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                XML Único
+              </Button>
+              <Button 
+                onClick={downloadAllAsZip} 
+                className="flex-1"
+                variant="outline"
+              >
+                <Package className="mr-2 h-4 w-4" />
+                ZIP
+              </Button>
+            </div>
             
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {files.map((file, index) => (

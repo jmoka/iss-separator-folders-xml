@@ -7,17 +7,23 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import FileUpload from '@/components/FileUpload';
 import FileCategories from '@/components/FileCategories';
+import ConfigPanel, { ConfigSettings } from '@/components/ConfigPanel';
 
 export interface ProcessedFile {
   name: string;
   content: string;
   category: 'tomador' | 'prestador' | 'sem_categoria';
-  originalFile: File;
+  notaNumero?: string;
 }
 
 const Index = () => {
   const [files, setFiles] = useState<ProcessedFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [config, setConfig] = useState<ConfigSettings>({
+    tagName: 'IssRetido',
+    tomadorValue: '1',
+    prestadorValue: '2'
+  });
 
   const processFiles = async (uploadedFiles: File[]) => {
     setIsProcessing(true);
@@ -26,14 +32,33 @@ const Index = () => {
     for (const file of uploadedFiles) {
       try {
         const content = await file.text();
-        const category = categorizeFile(content);
         
-        processed.push({
-          name: file.name,
-          content,
-          category,
-          originalFile: file
+        // Extrair todas as notas do XML
+        const nfseMatches = content.match(/<Nfse>[\s\S]*?<\/Nfse>/g);
+        
+        if (!nfseMatches) {
+          toast({
+            title: "Aviso",
+            description: `Nenhuma nota encontrada em ${file.name}`,
+            variant: "destructive"
+          });
+          continue;
+        }
+
+        // Processar cada nota individualmente
+        nfseMatches.forEach((nfseXml, index) => {
+          const numeroMatch = nfseXml.match(/<Numero>(.*?)<\/Numero>/);
+          const notaNumero = numeroMatch ? numeroMatch[1] : `${index + 1}`;
+          const category = categorizeFile(nfseXml);
+          
+          processed.push({
+            name: `Nota_${notaNumero}.xml`,
+            content: nfseXml,
+            category,
+            notaNumero
+          });
         });
+
       } catch (error) {
         console.error(`Erro ao processar arquivo ${file.name}:`, error);
         toast({
@@ -49,22 +74,23 @@ const Index = () => {
     
     toast({
       title: "Processamento concluído",
-      description: `${processed.length} arquivos processados com sucesso`
+      description: `${processed.length} notas processadas com sucesso`
     });
   };
 
   const categorizeFile = (xmlContent: string): 'tomador' | 'prestador' | 'sem_categoria' => {
-    const tipoRecolhimentoMatch = xmlContent.match(/<tipoRecolhimento>(.*?)<\/tipoRecolhimento>/i);
+    const tagPattern = new RegExp(`<${config.tagName}>(.*?)<\/${config.tagName}>`, 'i');
+    const tagMatch = xmlContent.match(tagPattern);
     
-    if (!tipoRecolhimentoMatch) {
+    if (!tagMatch) {
       return 'sem_categoria';
     }
 
-    const tipoRecolhimento = tipoRecolhimentoMatch[1].toLowerCase();
+    const tagValue = tagMatch[1].trim();
     
-    if (tipoRecolhimento.includes('tomador')) {
+    if (tagValue === config.tomadorValue) {
       return 'tomador';
-    } else if (tipoRecolhimento.includes('prestador')) {
+    } else if (tagValue === config.prestadorValue) {
       return 'prestador';
     }
     
@@ -74,8 +100,8 @@ const Index = () => {
   const clearFiles = () => {
     setFiles([]);
     toast({
-      title: "Arquivos limpos",
-      description: "Todos os arquivos foram removidos da lista"
+      title: "Notas limpas",
+      description: "Todas as notas foram removidas da lista"
     });
   };
 
@@ -97,6 +123,9 @@ const Index = () => {
           </p>
         </div>
 
+        {/* Config Section */}
+        <ConfigPanel config={config} onConfigChange={setConfig} />
+
         {/* Upload Section */}
         <Card className="shadow-lg">
           <CardHeader>
@@ -105,7 +134,7 @@ const Index = () => {
               Upload de Arquivos XML
             </CardTitle>
             <CardDescription>
-              Selecione múltiplos arquivos XML para análise e separação automática
+              Selecione arquivos XML com múltiplas notas para análise e separação automática
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -118,10 +147,10 @@ const Index = () => {
           <>
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-semibold text-gray-900">
-                Arquivos Processados ({files.length})
+                Notas Processadas ({files.length})
               </h2>
               <Button onClick={clearFiles} variant="outline">
-                Limpar Todos
+                Limpar Todas
               </Button>
             </div>
 
@@ -154,7 +183,7 @@ const Index = () => {
             {/* Summary */}
             <Alert>
               <AlertDescription>
-                <strong>Resumo:</strong> {tomadorFiles.length} arquivo(s) para Tomador, {prestadorFiles.length} arquivo(s) para Prestador, {semCategoriaFiles.length} arquivo(s) sem categoria identificada.
+                <strong>Resumo:</strong> {tomadorFiles.length} nota(s) para Tomador, {prestadorFiles.length} nota(s) para Prestador, {semCategoriaFiles.length} nota(s) sem categoria identificada.
               </AlertDescription>
             </Alert>
           </>
